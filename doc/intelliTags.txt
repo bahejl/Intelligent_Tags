@@ -1,0 +1,170 @@
+      For Vim version 7.0     Last change: 2011 July 31
+Plugin for automated tag creation/inclusion 
+
+1. Introduction                                 |intelliTags-intro|
+2. Requirements                                 |intelliTags-requirements|
+3. Options                                      |intelliTags-options|
+4. Commands                                     |intelliTags-commands|
+
+==============================================================================
+                                                *intelliTags-intro*
+1. Introduction
+
+Intelligent Tags is designed to handle creating tags and setting the 'tag'
+option for you.  Tradionally, you would run ctags on your project at regular
+intervals (or in a cron job), but I struggled with this approach for several
+reasons:
+* I'm initially not familiar with the project structure of many of the
+projects I work on, so I have to chase down the includes until I feel
+comfortable that I know where the project ends/begins before I can create a
+useful tags files.  This is a large overhead, and prevents me from using tags
+* As I actively work on a project, updating the tags once a day, or even
+every hour, just doesn't cut it.  I would like the tags to be updated as
+soon as the file is updated.
+
+
+Intelligent Tags solves these problems by using two tools.  First, it uses
+Vim's built-in options 'include', and 'includeexpr' to find any/all
+include files, and then searches those includes for includes, etc. The depth of this search
+can be set by the user to any level using the |Itags_Depth| variable.  To save
+time, Intelligent Tags will create an .incl file for every file examined.
+This file is simply a cache that lets Intelligent Tags avoid re-scanning for
+include files unless it is necessary.  In order for  any of this to work
+properly, Vim's path option must be set correctly.  You can check if it is
+correct by running the Vim command |:checkpath|.  If you use Intelligent Tags
+with an incorrect path, the information stored in the cached .incl files
+will be incorrect, and you will need to run the |ItagsRegenIncl| command after
+correcting your path to correct the cached informaiton.  For more
+information on setting your path type ':h path'.
+
+The second tool Intelligent Tags uses is exhuberant ctags.  Intelligent Tags
+uses exhuberant ctags' report of supported languages to automatically add a
+FileType autocommand for each type of supported file.  I want my tags
+updated as soon as I make a change to a file, but if you use the tradional
+method of having a single tags file per project that can take quite a while
+-- especially for a large project.  To work around that problem, Intelligent
+Tags creates a seperate tags file for each source file, and only updates
+those that are out of date.
+
+This methodolgy begins to break down for some languages, such as C, where
+the following problems exist:
+* foo.c includes bar.h, followed by baz.h, so (almost magically) everything
+in bar.h is available to baz.h.  Because Intelligent Tags works on a
+per-file and not per-project basis, it is impossible (as far as I can tell)
+for Intelligent Tags to know that bar.h's tags should be included based only
+on the information in baz.h.
+* foo.c includes bar.h, which contains externals defined in bar.c.
+Intelligent Tags works around this problem by allowing for a special
+|Itags_header_mapping| option.  If this is defined, when Intelligent Tags finds any
+included file whose extension is recognized as a header, it will search for
+a source file of the same name and include its tags as well.
+
+In the end, when you open any exhuberant ctags supported file, intelligent
+Tags will generated generate any tags files necessary and update the 'tags'
+option for you, and you don't have to do a thing!
+==============================================================================
+                                                *intelliTags-requirements*
+2. Requirements
+
+You must have exhuberant ctags installed to use this plugin.
+
+
+==============================================================================
+                                                *intelliTags-options*
+3. Options
+
+
+*Itags_Ctags_Cmd*
+If ctags is not on your path, set this variable to the location of the
+executable.  If not set, Intelligent Tags will attempt a search of common
+ctags names on the path until it finds one that can be executed.
+
+
+*Itags_Ctags_Flags*
+Use this variable to pass any command line arguments to ctags
+
+Default: >
+ "-n --extra=+q -R"
+<
+Note: The following arguments are required and will always be passed to ctags,
+after any arguments in the |Itags_Ctags_Flags|: >
+ '--fields=+k --tag-relative=yes -f'
+<
+    
+*Itags_Depth*
+This variable controls the 'depth' of the tag creation.
+
+For example:
+If set to 0, will generate/set tags for only the current file.
+If set to 1, will generate/set tags for the current file, plus all of
+the files it includes.
+If set to 2, will generate/set tags files for the current file, all of its
+includes, and all of the includes' includes.
+If set to -1, depth is infinite (ending only when there are no more files to
+include).
+
+For some languages (such as C) infinite depth is appropraite.  For others
+(such as Python), a depth of 1 is most appropraite.
+
+Default: 1
+
+*Itags_dir_name*
+Use this variable to set the name of the tags and include files to be created
+by Intelligent Tags.  This string is passed to an execute statement, so function calls can be included.  '.tags' will automatically be appended to the tags files, and '.incl' appended to include files.  When setting this directory, you can make use of two additional variables:
+
+dirName: the directory of the file being evaluated.
+fName: the name of the file being evaluated.
+
+Default: >
+ 'expand(''~/.tags/'') . fnamemodify(dirName.''/''.fName, '':gs?[/\\:\.]\+?\.?'')'
+<
+This default stores all tags/includes files in a directory named '.tags' in
+your home folder.  The name of the files will be the full path of the original
+file with all forward and back slashes replaced by '.'.  For example, the
+files created for C:\Python26\Lib\cmd.py will be C.Python26.Lib.cmd.py.incl
+and C.Python26.Lib.cmd.py.tags
+
+Another option to consider is >
+ "dirName . '/.tags/' . fName"
+<
+This would place the tags/include files in a '.tags' folder in the same
+directory as the file being evaluated.
+
+*Itags_header_mapping*
+Set this variable to a dictionary whose keys are the possible extensions
+for header files, and whose values are a list of possible corresponding source
+file extensions.  For example, if set to >
+ {'h':['c', 'cpp', 'c++']}
+<if foo.h is included, Intelligent Tags will also search for a file named foo.c,
+foo.cpp, or foo.c++ and include it as well.
+
+Default: {}
+
+*Itags_loaded*
+Set this varaible to any value to disable this plugin.
+
+==============================================================================
+                                                *intelliTags-commands*
+4. Commands
+
+*ItagsRun*
+This command will run Intelligent Tags on the current buffer, its includes, the
+includes of the includes, etc to a depth of |Itags_Depth|.  This command is
+also run in the FileType autocommand for all supported filetypes.
+
+*ItagsRegenTags*
+This command will execute |ItagsRun|, but will ignore any previously generated
+tags files.  This command is useful to generate tags files after changing the
+|Itags_Ctags_Flags| variable.
+
+*ItagsRegenIncl*
+This command will execute |ItagsRun|, but will ignore any previously generated
+include files.  This command is useful to run after making changes to/correcting
+the 'path' option.
+
+*ItagsRegenAll*
+This command will execute |ItagsRun|, but will ignore all previously generated
+tags AND include files.
+
+
+ vim:tw=78:ts=8:ft=help:norl:
