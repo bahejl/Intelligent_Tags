@@ -1,4 +1,4 @@
-      For Vim version 7.0     Last change: 2011 July 31
+*intelliTags.txt*       For Vim version 7.0     Last change: 2011 July 25
 Plugin for automated tag creation/inclusion 
 
 1. Introduction                                 |intelliTags-intro|
