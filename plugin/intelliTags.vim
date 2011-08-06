@@ -48,6 +48,29 @@
     " until it's finished
 " find a way to not generate tags for temp files?
 
+" I would like to list all includes in the .incl file, even those that can't
+" be found on the path.  That would mean needing to check files during
+" handleFileTags in case we don't have the full path in the .incl file.
+    " * maybe start a new version of .incl files:
+        " If file is found, store the full path in the file
+        " If file is not found, store the include name, and follow that with
+        " some kind of identifier (eg, "file_name\tNF").
+        " If a previously not found file is found, we'll need to set some flag
+        " to overwrite the existing .incl file with the found path(s)
+        " * I'm thinking I should somehow use "[^\f]" to delimit the file... 
+    " * another option is to only store the raw includes themselves, and only
+        " search for the file in handleFileTags itself:
+        " - slower (have to search every time)
+        " + all includes are always listed, and they are all consistent
+        " + if the filesystem changes somehow, such that an include changes
+        "   directory but is still on the path, this will catch that.
+
+    " * Or, do both?  As in:
+        " include_string    file_found(if any)
+        " * On every run, if handleFileTags gets -1 on the getftime, it will
+        " return with some kind of error code.  In that case, try to find the
+        " file and run again.  If the file is found, update the .incl file.
+        " * 
 if exists('g:Itags_loaded')
     finish
 endif
