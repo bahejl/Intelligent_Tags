@@ -71,6 +71,8 @@
         " return with some kind of error code.  In that case, try to find the
         " file and run again.  If the file is found, update the .incl file.
         " * 
+    " .incl File format:
+    " include_string	file_found	depth	type(local, header, normal?)
 if exists('g:Itags_loaded')
     finish
 endif
@@ -88,20 +90,17 @@ function s:handleFileTags(name, depth)
     " endif
     execute "let tName = " . g:Itags_dir_name . ".'.tags'"
     execute "let iName = " . g:Itags_dir_name . ".'.incl'"
-    " let tName = expand(tName)
-    " let iName = expand(iName)
-    " let tName = dirName . fName . ".tags"
-    " let iName = dirName . fName . ".incl"
 
     if !isdirectory(fnamemodify(tName, ":h"))
         call mkdir(fnamemodify(tName, ":h"))
     endif
 
-    if getftime(a:name) > getftime(iName) || s:forceIncl
+    let file_mod_time = getftime(a:name)
+    if file_mod_time > getftime(iName) || s:forceIncl
         call s:createInclFile(a:name, iName)
     endif
 
-    if getftime(a:name) > getftime(tName) || s:forceTags
+    if file_mod_time > getftime(tName) || s:forceTags
         silent! call system(s:cmdString . tName . '" "' . a:name . '"')
     endif
     " Why the triple escape? See :h option-backslash
@@ -114,11 +113,9 @@ function s:handleFileTags(name, depth)
 
     let fIncList = []
     let fExt = fnamemodify(a:name, ":e")
-    " let fExt = matchstr(a:name, '\.[^.\/]\+$')
     if has_key(g:Itags_header_mapping, fExt)
-        let rootName = fnamemodify(a:name, ':r')
+        let rootName = fnamemodify(a:name, ':t:r')
         for ext in g:Itags_header_mapping[fExt]
-            " let hDefName = findfile(substitute(a:name, '\.[^.\/]\+$', ext, ""))
             let hDefName = findfile(rootName .'.'. ext) 
             if len(hDefName)
                 call add(fIncList, [hDefName, g:Itags_Depth])
@@ -179,15 +176,19 @@ function s:findIncl(name)
     if !len(mFileName)
         let mFileName = finddir(a:name)
     endif
-    if len(mFileName)
-        let mFileName = fnamemodify(mFileName, ":p")
-        call add(fIncList, mFileName)
-        " let fIncList += [mFileName]
+    if !len(mFileName)
+        return fIncList
     endif
+    let mFileName = a:name . '\t' . fnamemodify(mFileName, ":p")
+    " Set depth
+    let mFileName .= '\t' . 'a:depth+1'
+    let mFileName .= '\t' . '.tags'
+    call add(fIncList, mFileName)
     " Decided to move this functionality to handleFileTags:
         " + can specify a depth for the newly included files
         " - have to evaluate every run, instead of just when generating the
         "   includes
+    
     " let fExt = matchstr(a:name, '\.[^.\/]$')
     " if has_key(g:Itags_header_mapping, fExt)
         " for ext in g:Itags_header_mapping[fExt]
@@ -227,7 +228,7 @@ function s:iTagMain(name)
     endif
     let b:tags = ""
     let sm = &l:shm
-    setl 
+
 
     call s:handleFileTags(a:name, 0)
 
@@ -293,11 +294,12 @@ function s:Init()
     endfor
 
     command! -nargs=0 -bar ItagsRun call s:iTagMain(expand("%:p"))
+    command! -nargs=0 -bar ItagsRunLocal let b:Itags_Depth_local = g:Itags_Depth | let g:Itags_Depth=0 | ItagsRun | let g:Itags_Depth=b:Itags_Depth_local
+
     augroup iTagsAU
         au!
-        for ft in supportList
-            execute "autocmd FileType " . tolower(ft) . ' ItagsRun'
-        endfor
+        execute "autocmd FileType " . join(supportList, ',') . ' ItagsRun'
+        execute "autocmd FileType " . join(supportList, ',') . ' au BufWritePost <buffer> ItagsRunLocal'
     augroup END
 
     let s:forceTags = 0
