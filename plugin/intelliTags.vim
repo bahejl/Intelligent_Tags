@@ -80,6 +80,7 @@ let g:Itags_loaded = 1
 
 function s:handleFileTags(name, depth)
     call s:WideMsg("echo ", "Generating tags file for:\t" . a:name)
+    let b:processedFiles[a:name] = 1
 
     " if isdirectory(a:name)
         " let dirName = fnamemodify(a:name, ":p:h:h")
@@ -111,25 +112,37 @@ function s:handleFileTags(name, depth)
         return
     endif
 
-    let fIncList = []
-    let fExt = fnamemodify(a:name, ":e")
-    if has_key(g:Itags_header_mapping, fExt)
-        let rootName = fnamemodify(a:name, ':t:r')
-        for ext in g:Itags_header_mapping[fExt]
-            let hDefName = findfile(rootName .'.'. ext) 
-            if len(hDefName)
-                call add(fIncList, [hDefName, g:Itags_Depth])
+    let file_mod = 0
+    noautocmd e +1 iName
+    for line_num in getbufline("", 1)
+        let line = split(getline("."), '\t')
+        if !len(line[1])
+            execute "cd! " . fnamemodify(a:name, ":p:h")
+            let line[1] = findIncl(line[0])[0]
+            cd! -
+            if !len(line[1])
+                continue
             endif
-        endfor
-    endif
-    for fileName in readfile(iName)
-        if len(fileName)
-            call add(fIncList, [fileName, a:depth+1])
+            let line[1] = fnamemodify(line[1], ":p")
+            append(line_num, join(line, "\t")
+            execute string(line_num) . "delete"
+            let file_mod = 1
         endif
+        execute "call add(fIncList, [line[1], " . line[2] . "])"
     endfor
+
+    if file_mod == 1
+        execute "w"
+    endif
+    execute "bdel!"
+
+    " for fileName in readfile(iName)
+        " if len(fileName)
+            " call add(fIncList, [fileName, a:depth+1])
+        " endif
+    " endfor
     for [inc, depth] in fIncList
         if !has_key(b:processedFiles, inc)
-            let b:processedFiles[inc] = 1
             call s:handleFileTags(inc, depth)
         endif
     endfor
@@ -172,42 +185,47 @@ endfunction
 
 function s:findIncl(name)
     let fIncList = []
+    let incl_line = a:name
     let mFileName = findfile(a:name)
+
     if !len(mFileName)
         let mFileName = finddir(a:name)
     endif
-    if !len(mFileName)
-        return fIncList
+    let incl_line .= '\t'
+    if len(mFileName)
+        let incl_line .= fnamemodify(mFileName, ":p")
     endif
-    let mFileName = a:name . '\t' . fnamemodify(mFileName, ":p")
     " Set depth
-    let mFileName .= '\t' . 'a:depth+1'
-    let mFileName .= '\t' . '.tags'
-    call add(fIncList, mFileName)
-    " Decided to move this functionality to handleFileTags:
-        " + can specify a depth for the newly included files
-        " - have to evaluate every run, instead of just when generating the
-        "   includes
+    let incl_line .= '\t' . 'a:depth+1'
+    let incl_line .= '\t' . '.tags'
+    call add(fIncList, incl_line)
     
-    " let fExt = matchstr(a:name, '\.[^.\/]$')
-    " if has_key(g:Itags_header_mapping, fExt)
-        " for ext in g:Itags_header_mapping[fExt]
-            " let fIncList += s:findIncl(substitute(a:name, fExt, ext, ""))
-        " endfor
-    " endif
+    let fExt = fnamemodify(a:name, ":e")
+    if has_key(g:Itags_header_mapping, fExt)
+        let rootName = fnamemodify(a:name, ':t:r')
+        for ext in g:Itags_header_mapping[fExt]
+            let hDefName = findfile(rootName .'.'. ext) 
+            if len(hDefName)
+                let hDefName = fnamemodify(hDefName, ":p")
+                let incl_line = a:name . '\t' . hDefName . '\t'
+                let incl_line .= 'g:Itags_Depth' . '\t' . '.tags'
+                call add(fIncList, incl_line)
+            endif
+        endfor
+    endif
     return fIncList
 endfunction
 
 function s:createInclFile(name, dest)
-    let fIncList = []
     let fIncDict = {}
-    let fIncList += s:createInclList(a:name)
+    let fIncList = s:createInclList(a:name)
 
-    " Remove duplicates, and sort
-    for item in fIncList
-        let fIncDict[item] = 1
-    endfor
-    let fIncList = sort(keys(fIncDict))
+    " Remove duplicates
+    " On second thought, it might be better to leave this information...
+    " for item in fIncList
+        " endif
+    " endfor
+    " let fIncList = sort(keys(fIncDict))
 
     call writefile(fIncList, a:dest)
 endfunction
