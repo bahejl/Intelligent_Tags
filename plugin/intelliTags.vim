@@ -112,29 +112,46 @@ function s:handleFileTags(name, depth)
         return
     endif
 
-    let file_mod = 0
-    noautocmd e +1 iName
-    for line_num in getbufline("", 1)
-        let line = split(getline("."), '\t')
-        if !len(line[1])
-            execute "cd! " . fnamemodify(a:name, ":p:h")
-            let line[1] = findIncl(line[0])[0]
-            cd! -
-            if !len(line[1])
-                continue
+    let fIncList = []
+    while 1
+        try
+            let file_mod = 0
+            noautocmd e +1 iName
+            for line_num in range(1, line('$'))
+                let line = split(getline(line_num), "\t")
+                " Catch empty lines
+                if len(line) == 0
+                    continue
+                endif
+                if !len(line[1])
+                    execute "cd! " . fnamemodify(a:name, ":p:h")
+                    let line[1] = s:findIncl(line[0])[0]
+                    cd! -
+                    if !len(line[1])
+                        continue
+                    endif
+                    let line[1] = fnamemodify(line[1], ":p")
+                    call append(line_num, join(line, "\t")
+                    execute string(line_num) . "delete"
+                    let file_mod = 1
+                endif
+                execute "call add(fIncList, [line[1], " . line[2] . "])"
+            endfor
+            break
+        catch /E684/  
+            " Catch list index out of range error (previous version)
+            execute "bdel!"
+            call s:createInclFile(a:name, iName)
+            echomsg string(line)
+        finally
+            if file_mod == 1
+                execute "w"
             endif
-            let line[1] = fnamemodify(line[1], ":p")
-            append(line_num, join(line, "\t")
-            execute string(line_num) . "delete"
-            let file_mod = 1
-        endif
-        execute "call add(fIncList, [line[1], " . line[2] . "])"
-    endfor
+            execute "bdel!"
+        endtry
+    endwhile
 
-    if file_mod == 1
-        execute "w"
-    endif
-    execute "bdel!"
+
 
     " for fileName in readfile(iName)
         " if len(fileName)
@@ -185,20 +202,21 @@ endfunction
 
 function s:findIncl(name)
     let fIncList = []
-    let incl_line = a:name
+    let incl_line = [a:name]
     let mFileName = findfile(a:name)
 
     if !len(mFileName)
         let mFileName = finddir(a:name)
     endif
-    let incl_line .= '\t'
     if len(mFileName)
-        let incl_line .= fnamemodify(mFileName, ":p")
+        call add(incl_line, fnamemodify(mFileName, ":p"))
+    else
+        call add(incl_line, "")
     endif
     " Set depth
-    let incl_line .= '\t' . 'a:depth+1'
-    let incl_line .= '\t' . '.tags'
-    call add(fIncList, incl_line)
+    call add(incl_line, 'a:depth+1')
+    call add(incl_line, '.tags')
+    call add(fIncList, join(incl_line, "\t"))
     
     let fExt = fnamemodify(a:name, ":e")
     if has_key(g:Itags_header_mapping, fExt)
@@ -207,9 +225,8 @@ function s:findIncl(name)
             let hDefName = findfile(rootName .'.'. ext) 
             if len(hDefName)
                 let hDefName = fnamemodify(hDefName, ":p")
-                let incl_line = a:name . '\t' . hDefName . '\t'
-                let incl_line .= 'g:Itags_Depth' . '\t' . '.tags'
-                call add(fIncList, incl_line)
+                let incl_line = [a:name, hDefName, 'g:Itags_Depth', '.tags']
+                call add(fIncList, join(incl_line, "\t"))
             endif
         endfor
     endif
