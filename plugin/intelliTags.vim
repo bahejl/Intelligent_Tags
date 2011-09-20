@@ -116,7 +116,8 @@ function s:handleFileTags(name, depth)
     while 1
         try
             let file_mod = 0
-            noautocmd e +1 iName
+            execute "noautocmd tabe +1 " . iName
+            echomsg "edit: " . bufname("")
             for line_num in range(1, line('$'))
                 let line = split(getline(line_num), "\t")
                 " Catch empty lines
@@ -143,13 +144,13 @@ function s:handleFileTags(name, depth)
             execute "bdel!"
             call s:createInclFile(a:name, iName)
             echomsg string(line)
-        finally
-            if file_mod == 1
-                execute "w"
-            endif
-            execute "bdel!"
         endtry
     endwhile
+    if file_mod == 1
+        execute "w"
+    endif
+    echomsg "normal bdel: " . bufname("")
+    execute "tabc!"
 
 
 
