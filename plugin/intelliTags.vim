@@ -117,7 +117,6 @@ function s:handleFileTags(name, depth)
         try
             let file_mod = 0
             execute "noautocmd tabe +1 " . iName
-            echomsg "edit: " . bufname("")
             for line_num in range(1, line('$'))
                 let line = split(getline(line_num), "\t")
                 " Catch empty lines
@@ -126,14 +125,13 @@ function s:handleFileTags(name, depth)
                 endif
                 if !len(line[1])
                     execute "cd! " . fnamemodify(a:name, ":p:h")
-                    let line[1] = s:findIncl(line[0])[0]
+                    let incl_path = findfile(line[0])
                     cd! -
-                    if !len(line[1])
+                    if !len(incl_path)
                         continue
                     endif
-                    let line[1] = fnamemodify(line[1], ":p")
-                    call append(line_num, join(line, "\t")
-                    execute string(line_num) . "delete"
+                    let line[1] = incl_path
+                    call setline(line_num, join(line, "\t"))
                     let file_mod = 1
                 endif
                 execute "call add(fIncList, [line[1], " . line[2] . "])"
@@ -143,14 +141,12 @@ function s:handleFileTags(name, depth)
             " Catch list index out of range error (previous version)
             execute "bdel!"
             call s:createInclFile(a:name, iName)
-            echomsg string(line)
         endtry
     endwhile
     if file_mod == 1
         execute "w"
     endif
-    echomsg "normal bdel: " . bufname("")
-    execute "tabc!"
+    execute "bdel!"
 
 
 
