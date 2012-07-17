@@ -302,7 +302,7 @@ function s:Init()
     if !exists("g:Itags_Ctags_Flags")
         let g:Itags_Ctags_Flags = "-n --extra=+q -R"
     endif
-    let s:cmdString = g:Itags_Ctags_Cmd . ' '. g:Itags_Ctags_Flags . ' --fields=+K --tag-relative=yes -f "'
+    let s:cmdString = g:Itags_Ctags_Cmd . ' '. g:Itags_Ctags_Flags . ' --fields=+k --tag-relative=yes -f "'
     if !exists("g:Itags_header_mapping")
         let g:Itags_header_mapping = {}
     endif
