@@ -102,7 +102,7 @@ function s:handleFileTags(name, depth)
     endif
 
     if file_mod_time > getftime(tName) || s:forceTags
-        silent! call system(s:cmdString . tName . '" "' . a:name . '"')
+        silent! call system('"' . s:cmdString . tName . '" "' . a:name . '""')
     endif
     " Why the triple escape? See :h option-backslash
     " execute 'setl tags+=' . fnameescape(fnameescape(fnameescape(findfile(tName))))
@@ -317,7 +317,7 @@ function s:Init()
     " ctags lists c++, but vim calls it cpp, etc...
     let typeMapping = {'c++': ['cpp'], 'c#': ['cs'], 'tcl': ['expect'], 'sh': ['csh', 'zsh'], }
     " let RevTypeMapping = {'cpp': 'c++', 'cs': 'c#', 'expect': 'tcl', 'csh': 'sh', 'zsh': 'sh', }
-    let supportList = split(system('ctags --list-languages'), '\n')
+    let supportList = split(system(g:Itags_Ctags_Cmd.' --list-languages'), '\n')
     for type in supportList
         let type = tolower(type)
         if has_key(typeMapping, type)
