@@ -27,7 +27,7 @@
             " opened.  The include file will no longer appear to be out of
             " date, so the 'master tags' file for the current buffer won't be
             " updated.  However, it will still include the old, outdated
-            " information! 
+            " information!
         " * Does this mean I would have to compare the modified date of the
             " 'master tags' file to each of the individual tags files?  That
             " would only add to problem #1!
@@ -57,7 +57,7 @@
         " some kind of identifier (eg, "file_name\tNF").
         " If a previously not found file is found, we'll need to set some flag
         " to overwrite the existing .incl file with the found path(s)
-        " * I'm thinking I should somehow use "[^\f]" to delimit the file... 
+        " * I'm thinking I should somehow use "[^\f]" to delimit the file...
     " * another option is to only store the raw includes themselves, and only
         " search for the file in handleFileTags itself:
         " - slower (have to search every time)
@@ -70,7 +70,7 @@
         " * On every run, if handleFileTags gets -1 on the getftime, it will
         " return with some kind of error code.  In that case, try to find the
         " file and run again.  If the file is found, update the .incl file.
-        " * 
+        " *
     " .incl File format:
     " include_string	file_found	depth	type(local, header, normal?)
 if exists('g:Itags_loaded')
@@ -116,9 +116,14 @@ function s:handleFileTags(name, depth)
     while 1
         try
             let file_mod = 0
-            execute "noautocmd tabe +1 " . iName
-            for line_num in range(1, line('$'))
-                let line = split(getline(line_num), "\t")
+            if filereadable(iName)
+                let lines = readfile(iName)
+            else
+                let lines = []
+            endif
+
+            for line_num in range(len(lines))
+                let line = split(lines[line_num], "\t")
                 " Catch empty lines
                 if len(line) == 0
                     continue
@@ -131,24 +136,20 @@ function s:handleFileTags(name, depth)
                         continue
                     endif
                     let line[1] = incl_path
-                    call setline(line_num, join(line, "\t"))
+                    lines[line_num] = join(line, "\t")
                     let file_mod = 1
                 endif
                 execute "call add(fIncList, [line[1], " . line[2] . "])"
             endfor
             break
-        catch /E684/  
+        catch /E684/
             " Catch list index out of range error (previous version)
-            execute "bdel!"
             call s:createInclFile(a:name, iName)
         endtry
     endwhile
     if file_mod == 1
-        execute "w"
+        writefile(lines, iName)
     endif
-    execute "bdel!"
-
-
 
     " for fileName in readfile(iName)
         " if len(fileName)
@@ -214,12 +215,12 @@ function s:findIncl(name)
     call add(incl_line, 'a:depth+1')
     call add(incl_line, '.tags')
     call add(fIncList, join(incl_line, "\t"))
-    
+
     let fExt = fnamemodify(a:name, ":e")
     if has_key(g:Itags_header_mapping, fExt)
         let rootName = fnamemodify(a:name, ':t:r')
         for ext in g:Itags_header_mapping[fExt]
-            let hDefName = findfile(rootName .'.'. ext) 
+            let hDefName = findfile(rootName .'.'. ext)
             if len(hDefName)
                 let hDefName = fnamemodify(hDefName, ":p")
                 let incl_line = [a:name, hDefName, 'g:Itags_Depth', '.tags']
@@ -312,7 +313,7 @@ function s:Init()
         " let g:Itags_dir_name = "dirName . '/.tags/' . fName"
     endif
 
-    " This seemed the best way to determine if it makes sense to 
+    " This seemed the best way to determine if it makes sense to
     "  try and run on the given buffer
     " ctags lists c++, but vim calls it cpp, etc...
     let typeMapping = {'c++': ['cpp'], 'c#': ['cs'], 'tcl': ['expect'], 'sh': ['csh', 'zsh'], }
