@@ -352,9 +352,12 @@ function! s:WideMsg(cmd, msg)
     let WINWIDTH = &l:columns
     let message = a:msg
     let message = message[:WINWIDTH-5]
-    while strdisplaywidth(message) > (WINWIDTH-5)
-        let message = message[:-2]
-    endwhile
+    if version >= 730
+        while strdisplaywidth(message) > (WINWIDTH-5)
+            let message = message[:-2]
+        endwhile
+    endif
+
     let message = '''' . message . ''''
 
     let x=&ruler | let y=&showcmd
