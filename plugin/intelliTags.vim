@@ -136,7 +136,7 @@ function s:handleFileTags(name, depth)
                         continue
                     endif
                     let line[1] = incl_path
-                    lines[line_num] = join(line, "\t")
+                    let lines[line_num] = join(line, "\t")
                     let file_mod = 1
                 endif
                 execute "call add(fIncList, [line[1], " . line[2] . "])"
@@ -148,7 +148,7 @@ function s:handleFileTags(name, depth)
         endtry
     endwhile
     if file_mod == 1
-        writefile(lines, iName)
+        call writefile(lines, iName)
     endif
 
     " for fileName in readfile(iName)
